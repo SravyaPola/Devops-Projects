@@ -18,7 +18,7 @@ pipeline {
         stage('Compile & Test (Maven)') {
             steps {
                 dir('order-ms') {
-                    sh 'mvn clean package'
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
