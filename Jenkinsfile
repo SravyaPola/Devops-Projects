@@ -2,9 +2,12 @@ pipeline {
     agent any
 
     environment {
-        // We’ll fill in DOCKERHUB_USER and DOCKERHUB_PASS at runtime via credentials,
-        // and use BUILD_NUMBER to tag the image uniquely.
-        IMAGE_NAME  = "myapp"
+        // Hard-coded Docker Hub creds (not recommended for long-term, but as requested)
+        DOCKERHUB_USER = "your_dockerhub_username"
+        DOCKERHUB_PASS = "your_dockerhub_password_or_token"
+
+        // Image name (will push to DOCKERHUB_USER/IMAGE_NAME:BUILD_NUMBER)
+        IMAGE_NAME  = "order-ms"
         IMAGE_TAG   = "${env.BUILD_NUMBER}"
         FULL_IMAGE  = "${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
     }
@@ -18,11 +21,15 @@ pipeline {
 
         stage('Maven Package') {
             steps {
-                sh 'mvn clean package'
+                // Switch into order-ms/ before running Maven
+                dir('order-ms') {
+                    sh 'mvn clean package'
+                }
             }
             post {
                 always {
-                    archiveArtifacts artifacts: "target/*.jar", fingerprint: true
+                    // Archive the JAR/WAR that Maven produced
+                    archiveArtifacts artifacts: 'order-ms/target/*.jar', fingerprint: true
                 }
             }
         }
@@ -30,20 +37,16 @@ pipeline {
         stage('Build & Push Docker Image') {
             steps {
                 script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_PASS'
-                    )]) {
+                    // Everything in the order-ms/ folder: Dockerfile should also be here
+                    dir('order-ms') {
                         sh """
                             # 1) Log in to Docker Hub
-                            echo "${DOCKERHUB_PASS}" \
-                              | docker login -u "${DOCKERHUB_USER}" --password-stdin
+                            echo "${DOCKERHUB_PASS}" | docker login -u "${DOCKERHUB_USER}" --password-stdin
 
-                            # 2) Build the Docker image
+                            # 2) Build the Docker image from order-ms/Dockerfile
                             docker build --pull -t ${FULL_IMAGE} .
 
-                            # 3) Push the image to Docker Hub
+                            # 3) Push it up
                             docker push ${FULL_IMAGE}
                         """
                     }
@@ -51,7 +54,7 @@ pipeline {
             }
             post {
                 always {
-                    // Clean up local image after pushing, so disk doesn’t fill up
+                    // Clean up local image to save disk space
                     sh "docker rmi ${FULL_IMAGE} || true"
                 }
             }
