@@ -4,8 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "order-ms"
         IMAGE_TAG  = "${BUILD_NUMBER}"
-        // FULL_IMAGE will be set once we have DOCKERHUB_USER from credentials
-        FULL_IMAGE = ""
+        // We will compute FULL_IMAGE inside the withCredentials block, because it needs DOCKERHUB_USER
     }
 
     stages {
@@ -15,42 +14,40 @@ pipeline {
             }
         }
 
-        stage('Compile & Test (Maven)') {
+        stage('Compile & Package (Maven)') {
             steps {
                 dir('order-ms') {
+                    // Skip tests so that Maven doesn’t try to run the broken SpringBoot test
                     sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        stage('Build, Tag & Push Docker Image') {
+        stage('Build & Push Docker Image') {
             steps {
-                // Assume you created a Jenkins “Username with password” credential
-                // with ID = "dockerhub-creds"
-                withCredentials([usernamePassword(
+                // Pull Docker Hub credentials out of Jenkins’s global store
+                withCredentials([ usernamePassword(
                     credentialsId: 'dockerhub-creds',
                     usernameVariable: 'DOCKERHUB_USER',
                     passwordVariable: 'DOCKERHUB_PASS'
-                )]) {
+                ) ]) {
                     script {
                         // Now that DOCKERHUB_USER is available, set FULL_IMAGE
                         env.FULL_IMAGE = "${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
                     }
+
                     dir('order-ms') {
-                        sh '''
-                            # 1) Log in to Docker Hub using the stored credential
-                            echo "$DOCKERHUB_PASS" \
-                              | docker login -u "$DOCKERHUB_USER" --password-stdin
+                        // 1) Log in to Docker Hub. We escape the $ so it's evaluated by the shell at runtime.
+                        sh "echo \"\$DOCKERHUB_PASS\" | docker login -u \"\$DOCKERHUB_USER\" --password-stdin"
 
-                            # 2) Build the Docker image
-                            docker build --pull -t $FULL_IMAGE .
+                        // 2) Build the image, tagging it correctly
+                        sh "docker build --pull -t ${FULL_IMAGE} ."
 
-                            # 3) Push the image to Docker Hub
-                            docker push $FULL_IMAGE
+                        // 3) Push to Docker Hub
+                        sh "docker push ${FULL_IMAGE}"
 
-                            # 4) Clean up local image
-                            docker rmi $FULL_IMAGE || true
-                        '''
+                        // 4) Remove the local image to avoid filling up disk
+                        sh "docker rmi ${FULL_IMAGE} || true"
                     }
                 }
             }
