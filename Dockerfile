@@ -8,7 +8,7 @@ WORKDIR /app
 # The wildcard (*.jar) will pick up whatever .jar was produced by Maven.
 COPY order-ms/target/*.jar app.jar
 
-# Expose the port your service listens on (e.g. 8080 for a Spring Boot app)
+# Expose the port your service listens on (e.g. 8080 for a Spring Boot apache)
 EXPOSE 8080
 
 # When a container is started from this image, run the JAR
