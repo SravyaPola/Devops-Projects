@@ -1,4 +1,4 @@
-# Use a slimmed‐down OpenJDK JRE image as the base
+# Use OpenJDK JRE image as the base
 FROM openjdk:17-jre-slim
 
 # Set a working directory inside the container
