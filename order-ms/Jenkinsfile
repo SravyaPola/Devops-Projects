@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME   = "order-ms"
         AWS_REGION   = "us-east-1"
-        CLUSTER_NAME = "my-eks-cluster"   // adjust if needed
+        CLUSTER_NAME = "my-eks-cluster"   // adjust if your cluster has a different name
     }
 
     stages {
@@ -34,8 +34,11 @@ pipeline {
                             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
                             docker build -t $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER .
                             docker push $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER
+
+                            # also tag latest (optional)
                             docker tag $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER $DOCKERHUB_USER/${IMAGE_NAME}:latest
                             docker push $DOCKERHUB_USER/${IMAGE_NAME}:latest
+
                             docker rmi $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER || true
                         '''
                     }
@@ -45,21 +48,28 @@ pipeline {
 
         stage('Deploy to EKS') {
             steps {
-                withCredentials([usernamePassword(
+                withCredentials([
+                  usernamePassword(
                     credentialsId: 'aws-creds',
                     usernameVariable: 'AWS_ACCESS_KEY_ID',
                     passwordVariable: 'AWS_SECRET_ACCESS_KEY'
-                )]) {
+                  ),
+                  usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKERHUB_USER',
+                    passwordVariable: 'DOCKERHUB_PASS'  // not strictly needed here
+                  )
+                ]) {
                     sh '''
-                        # Configure kubectl for EKS
+                        # configure kubectl for your cluster
                         aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
-                        # Deploy Kubernetes manifests
-                        kubectl apply -f order-ms/k8s/deployment.yaml
-                        kubectl apply -f order-ms/k8s/service.yaml
+                        # patch the Deployment to use the new, build-specific tag
+                        kubectl set image deployment/${IMAGE_NAME} \
+                          ${IMAGE_NAME}=$DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER
 
-                        # Wait for rollout
-                        kubectl rollout status deployment/${IMAGE_NAME}
+                        # wait for the rollout to complete (or fail fast)
+                        kubectl rollout status deployment/${IMAGE_NAME} --timeout=120s
                     '''
                 }
             }
