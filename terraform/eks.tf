@@ -20,10 +20,10 @@ module "eks" {
   worker_groups = [
     {
       name             = "default-workers"
-      instance_type    = "t3.medium"
-      desired_capacity = 2
+      instance_type    = "t2.medium"
+      desired_capacity = 1
       min_size         = 1
-      max_size         = 3
+      max_size         = 1
     }
   ]
 
