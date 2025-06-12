@@ -1,9 +1,5 @@
 # terraform/eks.tf
 
-provider "aws" {
-  region = var.region
-}
-
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 16.0"
