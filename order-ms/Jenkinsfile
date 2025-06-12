@@ -2,7 +2,9 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "order-ms"
+        IMAGE_NAME   = "order-ms"
+        AWS_REGION   = "us-east-1"
+        CLUSTER_NAME = "my-eks-cluster"      // <-- adjust if yours is named differently
     }
 
     stages {
@@ -32,9 +34,32 @@ pipeline {
                             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
                             docker build -t $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER .
                             docker push $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER
+                            docker tag $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER $DOCKERHUB_USER/${IMAGE_NAME}:latest
+                            docker push $DOCKERHUB_USER/${IMAGE_NAME}:latest
                             docker rmi $DOCKERHUB_USER/${IMAGE_NAME}:$BUILD_NUMBER || true
                         '''
                     }
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds'
+                ]]) {
+                    sh '''
+                        # configure kubectl for your EKS cluster
+                        aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+
+                        # apply your k8s manifests
+                        kubectl apply -f order-ms/k8s/deployment.yaml
+                        kubectl apply -f order-ms/k8s/service.yaml
+
+                        # wait for rollout
+                        kubectl rollout status deployment/${IMAGE_NAME}
+                    '''
                 }
             }
         }

@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-ms
+  labels:
+    app: order-ms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-ms
+  template:
+    metadata:
+      labels:
+        app: order-ms
+    spec:
+      containers:
+      - name: order-ms
+        image: <DOCKERHUB_USER>/order-ms:latest   
+        ports:
+        - containerPort: 8080
