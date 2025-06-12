@@ -1,7 +1,7 @@
 # order-ms/Dockerfile
 
 # 1. Start from a slim OpenJDK runtime
-FROM openjdk:17-jre-slim
+FROM openjdk:17-jdk-slim
 
 # 2. Create and switch to /app
 WORKDIR /app
