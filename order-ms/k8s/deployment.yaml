@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: order-ms
-        image: <DOCKERHUB_USER>/order-ms:latest   
+        image: sravs018/order-ms:latest   
         ports:
         - containerPort: 8080
