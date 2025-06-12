@@ -1,16 +1,18 @@
-# Use OpenJDK JRE image as the base
+# order-ms/Dockerfile
+
+# 1. Start from a slim OpenJDK runtime
 FROM openjdk:11-jre-slim
 
-# Set a working directory inside the container
+# 2. Create and switch to /app
 WORKDIR /app
 
-# Copy the built JAR from the "order-ms/target" folder into the image.
-# The wildcard (*.jar) will pick up whatever .jar was produced by Maven.
-COPY order-ms/target/*.jar app.jar
+# 3. Copy the JAR our Jenkins build produces
+#    (inside order-ms/, target/ is right next to this Dockerfile)
+COPY target/*.jar app.jar
 
-# Expose the port your service listens on (e.g. 8080 for a Spring Boot apache)
+# 4. Expose the port Spring Boot runs on
 EXPOSE 8080
 
-# When a container is started from this image, run the JAR
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# 5. Run the app
+ENTRYPOINT ["java","-jar","app.jar"]
 
