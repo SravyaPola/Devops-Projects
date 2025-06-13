@@ -23,7 +23,7 @@ public class OrderController {
 	@Autowired
 	private KafkaTemplate<String, OrderEvent> kafkaTemplate;
 
-	@GetMapping("/")
+	@GetMapping("/home")
 	public String home() {
 		return "Order-MS up and running!";
 	}
